@@ -4,7 +4,7 @@ import uuid
 import io
 import base64
 from PIL import Image
-from flask import Flask, request, render_template_string, redirect
+from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
 
@@ -99,8 +99,9 @@ FORM_WEDDING_HTML = '''
         <input type="hidden" name="category" value="wedding">
         <label>Bride's Name:</label><input type="text" name="bride" placeholder="e.g. Meenal" required>
         <label>Groom's Name:</label><input type="text" name="groom" placeholder="e.g. Avinash" required>
-        <label>Main Wedding Date Tagline:</label><input type="text" name="main_date" placeholder="e.g. July 01, 2026" required>
+        <label>Main Wedding Date (e.g. Jul 01, 2026):</label><input type="text" name="main_date" placeholder="July 01, 2026" required>
         <label>Main Couple Cover Photo:</label><input type="file" name="cover_photo" accept="image/*" required>
+        
         <div id="eventsContainer">
             <div class="event-box">
                 <h4 style="color:#f3c677;">Function 1 Details</h4>
@@ -112,6 +113,10 @@ FORM_WEDDING_HTML = '''
             </div>
         </div>
         <button type="button" class="add-btn" onclick="addEventField()">+ Add Another Function</button>
+        
+        <label>Custom Audio MP3 Link (Optional):</label>
+        <input type="text" name="music" placeholder="Paste direct MP3 URL here (Keep empty for default Shehnai music)">
+
         <label>Message / Quote:</label><textarea name="message" rows="2"></textarea>
         <label>Host Name:</label><input type="text" name="sender" placeholder="e.g. Mrs & Mr Sharma" required>
         <label>WhatsApp Contact Number:</label><input type="tel" name="phone" placeholder="+91 9973234977" required>
@@ -140,71 +145,287 @@ FORM_WEDDING_HTML = '''
 </html>
 '''
 
-# 3. DISPLAY WEDDING PAGE
+# 3. DISPLAY WEDDING PAGE (ALL FEATURES INTEGRATED)
 DISPLAY_WEDDING_HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Royal Invitation</title>
+    <title>Royal Celebration Invitation</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Great+Vibes&family=Poppins:wght@300;400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Great+Vibes&family=Poppins:wght@300;400;600&display=swap');
+        
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0b0203; color: #5a0e14; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; }
-        .mobile-container { width: 100%; max-width: 440px; background: #fffcf8; min-height: 100vh; position: relative; padding-bottom: 60px; }
-        .envelope-overlay { position: fixed; inset: 0; max-width: 440px; margin: auto; background: linear-gradient(145deg, #7a090e, #360204); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #f3c677; transition: transform 0.9s; }
-        .seal-btn { width: 100px; height: 100px; background: radial-gradient(circle, #f3c677, #aa7c11); border-radius: 50%; border: 4px solid #fffaf0; display: flex; justify-content: center; align-items: center; font-family: 'Cinzel', serif; font-weight: bold; font-size: 20px; color: #4a0306; cursor: pointer; margin-top: 30px; }
-        .header-section { text-align: center; padding: 40px 20px 20px 20px; }
-        .couple-title { font-family: 'Great Vibes', cursive; font-size: 50px; color: #800e13; }
-        .save-date-card { background: linear-gradient(135deg, #800e13, #50080b); color: #f3c677; margin: 25px 20px; padding: 20px; border-radius: 18px; text-align: center; border: 1px solid #d4af37; }
-        .cover-photo-box { margin: 25px 20px; background: #fff; padding: 8px; border-radius: 18px; }
-        .cover-photo-box img { width: 100%; border-radius: 12px; height: 300px; object-fit: cover; }
-        .event-card { background: #fff; border: 1px solid #f0e2d5; border-radius: 18px; margin: 20px; overflow: hidden; }
-        .event-card img { width: 100%; height: 200px; object-fit: cover; }
-        .event-details { padding: 18px; }
-        .event-details h3 { color: #800e13; font-family: 'Cinzel', serif; }
-        .map-btn { display: inline-block; margin-top: 10px; background: #800e13; color: #f3c677; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; }
+        
+        body { 
+            background: #0d0103; 
+            font-family: 'Poppins', sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh;
+        }
+
+        .mobile-container { 
+            width: 100%; 
+            max-width: 440px; 
+            background: radial-gradient(circle, #2a0409 0%, #120104 100%); 
+            min-height: 100vh; 
+            position: relative; 
+            padding-bottom: 70px; 
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+            border-left: 2px solid #d4af37;
+            border-right: 2px solid #d4af37;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        .bg-pattern {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(212, 175, 55, 0.15) 1px, transparent 0);
+            background-size: 24px 24px;
+            pointer-events: none;
+        }
+
+        .envelope-overlay { 
+            position: fixed; 
+            inset: 0; 
+            max-width: 440px; 
+            margin: auto; 
+            background: linear-gradient(135deg, #4a0307, #1a0103); 
+            z-index: 100; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            color: #f3c677; 
+            transition: transform 0.8s ease-in-out;
+            border: 3px solid #d4af37;
+        }
+
+        .seal-btn { 
+            width: 90px; 
+            height: 90px; 
+            background: radial-gradient(circle, #f3c677, #aa7c11); 
+            border-radius: 50%; 
+            border: 4px solid #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            font-family: 'Cinzel', serif; 
+            font-weight: bold; 
+            font-size: 16px; 
+            color: #2a0409; 
+            cursor: pointer; 
+            margin-top: 25px; 
+            box-shadow: 0 0 20px rgba(243, 198, 119, 0.6);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(243, 198, 119, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(243, 198, 119, 0); }
+            100% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(243, 198, 119, 0); }
+        }
+
+        .header-section { text-align: center; padding: 40px 20px 10px 20px; position: relative; }
+        .mantra { color: #d4af37; font-size: 13px; letter-spacing: 1px; margin-bottom: 10px; }
+        
+        .couple-title { 
+            font-family: 'Great Vibes', cursive; 
+            font-size: 52px; 
+            color: #f3c677; 
+            text-shadow: 0 0 10px rgba(243, 198, 119, 0.4);
+        }
+
+        .ampersand { font-family: 'Cinzel', serif; color: #d4af37; font-size: 24px; margin: 5px 0; }
+
+        .save-date-card { 
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(128, 14, 19, 0.5)); 
+            color: #f3c677; 
+            margin: 20px; 
+            padding: 15px; 
+            border-radius: 12px; 
+            text-align: center; 
+            border: 1px solid #d4af37;
+            backdrop-filter: blur(5px);
+        }
+
+        .cover-photo-box { 
+            margin: 20px; 
+            border: 2px solid #d4af37; 
+            padding: 6px; 
+            border-radius: 16px; 
+            background: rgba(0,0,0,0.3);
+        }
+        .cover-photo-box img { width: 100%; border-radius: 10px; height: 280px; object-fit: cover; display: block; }
+
+        .event-card { 
+            background: rgba(42, 4, 9, 0.7); 
+            border: 1px solid rgba(212, 175, 55, 0.4); 
+            border-radius: 16px; 
+            margin: 20px; 
+            overflow: hidden; 
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+        .event-card img { width: 100%; height: 180px; object-fit: cover; }
+        .event-details { padding: 18px; text-align: center; }
+        .event-details h3 { color: #f3c677; font-family: 'Cinzel', serif; font-size: 20px; margin-bottom: 8px; }
+        .event-info { color: #e2d1c3; font-size: 13px; margin-bottom: 5px; }
+
+        .map-btn { 
+            display: inline-block; 
+            margin-top: 12px; 
+            background: linear-gradient(135deg, #d4af37, #aa7c11); 
+            color: #120104; 
+            text-decoration: none; 
+            padding: 8px 20px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            font-weight: bold;
+        }
+
+        .wa-share-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #25D366;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 13px;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .music-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid #d4af37;
+            color: #f3c677;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 90;
+        }
+
+        .footer-msg { text-align: center; padding: 20px; color: #d4af37; font-style: italic; font-size: 13px; }
     </style>
 </head>
 <body>
 <div class="mobile-container">
+    <div class="bg-pattern"></div>
+    
+    <div class="music-toggle" onclick="toggleMusic()" id="musicBtn">🎵</div>
+
     <div class="envelope-overlay" id="envelope">
-        <h2 style="font-family:'Cinzel', serif;">ROYAL INVITATION</h2>
+        <h2 style="font-family:'Cinzel', serif; letter-spacing: 2px;">ROYAL INVITATION</h2>
+        <p style="font-size: 12px; margin-top: 5px; color: #e2d1c3;">Tap to open celebration</p>
         <div class="seal-btn" onclick="openEnvelope()">OPEN</div>
     </div>
+
     <div class="header-section">
-        <div style="color: #800e13;">|| Shree Ganeshay Namah ||</div>
+        <div class="mantra">|| Shree Ganeshay Namah ||</div>
         <div class="couple-title">{{ wish.bride }}</div>
-        <div style="font-family:'Cinzel', serif; color:#d4af37;">&</div>
+        <div class="ampersand">&</div>
         <div class="couple-title">{{ wish.groom }}</div>
-        <div style="margin-top:15px; font-size:12px;">Hosted By: <b>{{ wish.sender }}</b></div>
+        <div style="margin-top: 15px; font-size: 12px; color: #e2d1c3;">Warmly Invited By: <b style="color:#f3c677;">{{ wish.sender }}</b></div>
     </div>
+
     <div class="save-date-card">
-        <div style="font-size: 11px;">SAVE THE DATE</div>
-        <div style="font-size:22px; font-weight:bold;">{{ wish.main_date }}</div>
+        <div style="font-size: 10px; letter-spacing: 2px; color: #fff;">CELEBRATION COUNTDOWN</div>
+        <div id="countdown" style="font-size: 18px; font-weight: bold; margin-top: 5px; color: #f3c677;">Loading...</div>
     </div>
+
     {% if wish.cover_photo %}
-    <div class="cover-photo-box"><img src="{{ wish.cover_photo }}"></div>
+    <div class="cover-photo-box">
+        <img src="{{ wish.cover_photo }}">
+    </div>
     {% endif %}
+
     {% for event in wish.events %}
     <div class="event-card">
         {% if event.photo %}<img src="{{ event.photo }}">{% endif %}
         <div class="event-details">
             <h3>{{ event.name }}</h3>
-            <div><b>Time:</b> {{ event.time }}</div>
-            <div><b>Venue:</b> {{ event.venue }}</div>
-            {% if event.map %}<a href="{{ event.map }}" target="_blank" class="map-btn">📍 DIRECTIONS</a>{% endif %}
+            <div class="event-info">📅 {{ event.time }}</div>
+            <div class="event-info">📍 {{ event.venue }}</div>
+            {% if event.map %}<a href="{{ event.map }}" target="_blank" class="map-btn">GET LOCATION</a>{% endif %}
         </div>
     </div>
     {% endfor %}
+
+    {% if wish.message %}
+    <div class="footer-msg">"{{ wish.message }}"</div>
+    {% endif %}
+
+    <a href="https://api.whatsapp.com/send?text=You%20are%20cordially%20invited%20to%20our%20wedding!%20Check%20the%20invitation%20here:%20" 
+       target="_blank" class="wa-share-btn">
+       💬 Share Invite
+    </a>
 </div>
+
 <audio id="bgMusic" src="{{ wish.music }}" loop></audio>
+
 <script>
     function openEnvelope() {
         document.getElementById('envelope').style.transform = 'translateY(-100%)';
         var music = document.getElementById('bgMusic');
         if(music) { music.play().catch(function(e){ console.log(e); }); }
+        
+        // Flower / Celebration Shower
+        confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
     }
+
+    var isPlaying = true;
+    function toggleMusic() {
+        var music = document.getElementById('bgMusic');
+        var btn = document.getElementById('musicBtn');
+        if (isPlaying) {
+            music.pause();
+            btn.innerHTML = '🔇';
+        } else {
+            music.play();
+            btn.innerHTML = '🎵';
+        }
+        isPlaying = !isPlaying;
+    }
+
+    // Dynamic Countdown Timer Setup
+    var eventDate = new Date("{{ wish.main_date }}").getTime();
+    var x = setInterval(function() {
+        var now = new Date().getTime();
+        var distance = eventDate - now;
+        if (isNaN(distance) || distance < 0) {
+            document.getElementById("countdown").innerHTML = "{{ wish.main_date }}";
+            clearInterval(x);
+            return;
+        }
+        var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        document.getElementById("countdown").innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s ";
+    }, 1000);
 </script>
 </body>
 </html>
@@ -228,6 +449,9 @@ def save_wish():
     message = request.form.get('message', '')
     sender = request.form.get('sender')
     phone = request.form.get('phone')
+    user_music = request.form.get('music', '').strip()
+
+    music_url = user_music if user_music else DEFAULT_MUSIC_WEDDING
 
     cover_file = request.files.get('cover_photo')
     cover_b64 = process_image(cover_file) if cover_file else ""
@@ -254,38 +478,10 @@ def save_wish():
     conn = sqlite3.connect('wishes.db')
     c = conn.cursor()
     c.execute("INSERT INTO wishes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              (wish_id, category, groom, bride, main_date, json.dumps(events_list), message, "", sender, phone, DEFAULT_MUSIC_WEDDING))
+              (wish_id, category, groom, bride, main_date, json.dumps(events_list), message, cover_b64, sender, phone, music_url))
     conn.commit()
     conn.close()
 
     link = f"http://127.0.0.1:8080/w/{wish_id}"
     return f'''
-    <div style="background:#1a0508; color:#f3c677; text-align:center; padding:50px 20px; font-family:sans-serif; min-height:100vh;">
-        <h2>Royal Invitation Link Ready!</h2>
-        <p style="color:#fff;">Share this link:</p>
-        <input type="text" value="{link}" style="width:90%; max-width:400px; padding:12px; text-align:center;" readonly>
-        <br><br>
-        <a href="{link}" style="color:#d4af37; font-weight:bold;">Preview Invitation</a>
-    </div>
-    '''
-
-@app.route('/w/<wish_id>')
-def view_wish(wish_id):
-    conn = sqlite3.connect('wishes.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM wishes WHERE id=?", (wish_id,))
-    row = c.fetchone()
-    conn.close()
-
-    if not row:
-        return "Invitation Not Found", 404
-
-    wish_data = {
-        'category': row[1], 'groom': row[2], 'bride': row[3], 'main_date': row[4],
-        'events': json.loads(row[5]), 'message': row[6], 'cover_photo': row[7], 'sender': row[8], 'music': row[10]
-    }
-    return render_template_string(DISPLAY_WEDDING_HTML, wish=wish_data)
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
-    
+    <div style="background:#1a0508; color:#f3c677; text-align:center; padding:50px 20px; font-family:sans-serif; 
